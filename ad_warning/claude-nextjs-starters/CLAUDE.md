@@ -21,6 +21,13 @@
 - **⚡ Next.js 15.5.3 전문 가이드**: `@/docs/guides/nextjs-15.md`
 - **📝 폼 처리 완전 가이드**: `@/docs/guides/forms-react-hook-form.md`
 
+## 이상 감지 규칙
+
+- 규칙의 기준 문서는 `@/docs/detection-rules.md` 입니다. 규칙을 구현·수정할 때 반드시 먼저 읽을 것.
+- 임계값은 코드에 하드코딩하지 말고 `rules.config.ts`로 분리한다.
+- 규칙은 `src/lib/detection/rules/`에 순수 함수로 작성하고, 규칙마다 테스트를 둔다.
+- 명세에 없는 규칙이나 임계값을 임의로 추가하지 말고, 필요하면 먼저 제안한다.
+
 ## ⚡ 자주 사용하는 명령어
 
 ```bash
