@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Bash",
+      "WebFetch",
+      "WebSearch",
+      "mcp__ide",
+      "mcp__shadcn",
+      "mcp__playwright",
+      "mcp__sequential-thinking",
+      "mcp__shadcn__search_items_in_registries",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": ["playwright"]
+}
