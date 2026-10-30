@@ -3,15 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-
-interface NavItem {
-  title: string
-  href: string
-}
-
-const navItems: NavItem[] = [
-  { title: '홈', href: '/' },
-]
+import { isActivePath, navItems } from './nav-items'
 
 export function MainNav() {
   const pathname = usePathname()
@@ -24,7 +16,9 @@ export function MainNav() {
           href={item.href}
           className={cn(
             'hover:text-primary text-sm font-medium transition-colors',
-            pathname === item.href ? 'text-foreground' : 'text-foreground/60'
+            isActivePath(pathname, item.href)
+              ? 'text-foreground'
+              : 'text-foreground/60'
           )}
         >
           {item.title}

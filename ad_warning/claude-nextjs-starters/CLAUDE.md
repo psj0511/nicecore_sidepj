@@ -1,6 +1,8 @@
 # 🤖 Claude Code 개발 지침
 
-**claude-nextjs-starters**는 Next.js 15.5.3 + React 19 기반 모던 웹 애플리케이션 스타터 템플릿입니다.
+**광고 성과 이상 감지 및 운영 이슈 자동화 시스템**은 광고 성과 CSV에서 이상 징후를 자동으로 감지해 이슈로 등록하고 Notion 티켓으로 전달하는 Next.js 15.5.3 + React 19 기반 MVP입니다.
+
+📋 상세 프로젝트 요구사항은 @/docs/PRD.md 참조
 
 ## 🛠️ 핵심 기술 스택
 

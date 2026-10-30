@@ -22,7 +22,7 @@ export function Header() {
           {/* Logo */}
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center space-x-2">
-              <span className="text-xl font-bold">NextJS Starter</span>
+              <span className="text-xl font-bold">광고 성과 이상 감지</span>
             </Link>
 
             {/* Desktop Navigation */}
@@ -31,13 +31,6 @@ export function Header() {
 
           {/* Right Side */}
           <div className="flex items-center gap-4">
-            {!isMobile && (
-              <Link href="/login">
-                <Button variant="outline" size="sm">
-                  로그인
-                </Button>
-              </Link>
-            )}
             <ThemeToggle />
 
             {/* Mobile Menu Button */}
