@@ -22,6 +22,8 @@ export interface SourceDatabase {
   /** child_database 블록 ID (= database ID) */
   id: string
   title: string
+  /** 목록 단계에서 확인한 데이터 소스 ID (없으면 조회 시 retrieve로 찾는다) */
+  dataSourceId?: string
 }
 
 export interface SourceError {
@@ -63,14 +65,26 @@ async function fetchSourceDatabases(): Promise<SourceDatabase[]> {
     }
     cursor = res.has_more ? (res.next_cursor ?? undefined) : undefined
   } while (cursor)
+  // DB와 데이터 소스의 연결은 거의 바뀌지 않으므로 목록과 함께 한 번에 확인해 캐시한다
+  for (const db of out) {
+    try {
+      const d = await notion.databases.retrieve({ database_id: db.id })
+      db.dataSourceId = 'data_sources' in d ? d.data_sources[0]?.id : undefined
+    } catch {
+      // 실패하면 조회 단계에서 다시 시도한다
+    }
+  }
   return out
 }
 
-/** 하위 DB 목록도 짧게 캐시해 페이지 요청마다 Notion을 호출하지 않는다 */
+/** 하위 DB 목록 캐시 시간(초). 새 DB는 이 시간 안에, 수동 새로고침 시에는 즉시 반영된다 */
+const LIST_CACHE_SECONDS = 600
+
+/** 하위 DB 목록·데이터 소스 ID를 캐시해 페이지 요청마다 Notion을 호출하지 않는다 */
 export const listSourceDatabases = unstable_cache(
   fetchSourceDatabases,
   ['notion-source-list'],
-  { revalidate: SOURCE_CACHE_SECONDS, tags: [SOURCE_CACHE_TAG] }
+  { revalidate: LIST_CACHE_SECONDS, tags: [SOURCE_CACHE_TAG] }
 )
 
 /** Notion 한도(초당 ~3건) 초과를 피하기 위한 동시 조회 DB 수 */
@@ -147,13 +161,49 @@ async function windowFilter(dataSourceId: string, windowDays: number) {
   }
 }
 
+/**
+ * 이미 읽은 행에 `windowFilter`와 같은 기준(날짜 속성이 `date` 타입일 때만,
+ * 최신 날짜 기준 N일 이내)을 적용한다. 전체가 한 페이지에 들어온 DB용
+ */
+function windowRows<T extends { properties: Record<string, unknown> }>(
+  rows: T[],
+  windowDays: number
+): T[] {
+  const first = rows[0]
+  if (!first) return rows
+  const name = resolveMetricProperty(
+    'date',
+    first.properties as Parameters<typeof resolveMetricProperty>[1]
+  )
+  const start = (row: T) => {
+    const p = name ? (row.properties[name] as RawProp | undefined) : undefined
+    return p?.type === 'date'
+      ? (p.date as { start?: string } | null)?.start
+      : undefined
+  }
+  if (!name || (first.properties[name] as RawProp | undefined)?.type !== 'date')
+    return rows
+  const dates = rows.map(start).filter((d): d is string => !!d)
+  const latest = dates.sort().at(-1)
+  if (!latest || !/^\d{4}-\d{2}-\d{2}/.test(latest)) return rows
+  const cutoff = daysBefore(latest, windowDays)
+  return rows.filter(r => {
+    const d = start(r)
+    return d !== undefined && d.slice(0, 10) >= cutoff
+  })
+}
+
 async function loadSource(
   database: SourceDatabase,
   windowDays?: number
 ): Promise<SourceSnapshot> {
   const notion = getNotion()
-  const db = await notion.databases.retrieve({ database_id: database.id })
-  const dataSourceId = 'data_sources' in db ? db.data_sources[0]?.id : undefined
+  // 목록 단계에서 이미 확인한 데이터 소스 ID가 있으면 retrieve 호출을 생략한다
+  let dataSourceId = database.dataSourceId
+  if (!dataSourceId) {
+    const db = await notion.databases.retrieve({ database_id: database.id })
+    dataSourceId = 'data_sources' in db ? db.data_sources[0]?.id : undefined
+  }
   const fetchedAt = new Date().toISOString()
   if (!dataSourceId) {
     return {
@@ -165,13 +215,31 @@ async function loadSource(
     }
   }
 
-  const filter = windowDays
-    ? await windowFilter(dataSourceId, windowDays)
-    : undefined
-  const pages = await queryAll({
-    data_source_id: dataSourceId,
-    filter: filter as never,
-  })
+  let pages: Awaited<ReturnType<typeof queryAll>>
+  if (windowDays) {
+    // 한 페이지(100행)에 다 들어오는 DB는 기간 필터용 탐색 조회(2회)가 필요 없다
+    const first = await notion.dataSources.query({
+      data_source_id: dataSourceId,
+      page_size: 100,
+    })
+    if (!first.has_more) {
+      pages = windowRows(
+        first.results.filter(
+          (r): r is Awaited<ReturnType<typeof queryAll>>[number] =>
+            r.object === 'page' && 'properties' in r
+        ),
+        windowDays
+      )
+    } else {
+      const filter = await windowFilter(dataSourceId, windowDays)
+      pages = await queryAll({
+        data_source_id: dataSourceId,
+        filter: filter as never,
+      })
+    }
+  } else {
+    pages = await queryAll({ data_source_id: dataSourceId })
+  }
   const fields = Object.keys(METRIC_PROPERTY_NAMES) as MetricField[]
   const errors: SourceError[] = []
 
