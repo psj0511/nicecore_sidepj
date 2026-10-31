@@ -4,6 +4,10 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { notionPageIdSchema } from '@/lib/validations/notion-id'
 import { updateIssue } from '@/lib/repositories/issues'
+import {
+  createTicketForIssue,
+  describeNotionError,
+} from '@/lib/tickets/service'
 import { ISSUE_STATUSES } from '@/types'
 import type { ActionResult } from './rules'
 
@@ -42,5 +46,21 @@ export async function saveIssueMemoAction(
     return { ok: true, data: undefined }
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : '저장 실패' }
+  }
+}
+
+export async function createTicketAction(
+  id: string
+): Promise<ActionResult<{ url: string }>> {
+  const parsedId = idSchema.safeParse(id)
+  if (!parsedId.success) return { ok: false, error: '잘못된 요청입니다' }
+  try {
+    // 앱 이슈 DB 소속 확인은 getIssue(getStorePage)에서 수행된다
+    const url = await createTicketForIssue(parsedId.data)
+    revalidatePath('/issues')
+    revalidatePath(`/issues/${id}`)
+    return { ok: true, data: { url } }
+  } catch (e) {
+    return { ok: false, error: describeNotionError(e) }
   }
 }

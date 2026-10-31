@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import {
+  createTicketAction,
   saveIssueMemoAction,
   updateIssueStatusAction,
 } from '@/lib/actions/issues'
@@ -29,11 +30,13 @@ interface IssueActionsProps {
   notionConnected: boolean
 }
 
-/** 상태·메모는 Server Action으로 저장. Notion 티켓 생성은 Task 011 */
+/** 상태·메모·Notion 티켓 생성은 Server Action으로 처리 */
 export function IssueActions({ issue, notionConnected }: IssueActionsProps) {
   const [status, setStatus] = useState<IssueStatus>(issue.status)
   const [memo, setMemo] = useState(issue.memo ?? '')
-  const hasTicket = Boolean(issue.notion_url)
+  const [ticketUrl, setTicketUrl] = useState(issue.notion_url)
+  const [creating, setCreating] = useState(false)
+  const hasTicket = Boolean(ticketUrl)
 
   return (
     <div className="space-y-6">
@@ -93,7 +96,7 @@ export function IssueActions({ issue, notionConnected }: IssueActionsProps) {
           <div className="flex flex-wrap items-center gap-3">
             <Button disabled>티켓 생성됨</Button>
             <a
-              href={issue.notion_url!}
+              href={ticketUrl!}
               target="_blank"
               rel="noreferrer"
               className="text-sm underline"
@@ -103,11 +106,20 @@ export function IssueActions({ issue, notionConnected }: IssueActionsProps) {
           </div>
         ) : notionConnected ? (
           <Button
-            onClick={() =>
-              toast.info('Notion 티켓 생성은 Task 011에서 연동됩니다')
-            }
+            disabled={creating}
+            onClick={async () => {
+              setCreating(true)
+              const res = await createTicketAction(issue.id)
+              setCreating(false)
+              if (res.ok) {
+                setTicketUrl(res.data.url)
+                toast.success('Notion 티켓을 생성했습니다')
+              } else {
+                toast.error(res.error)
+              }
+            }}
           >
-            Notion 티켓 생성
+            {creating ? '생성 중…' : 'Notion 티켓 생성'}
           </Button>
         ) : (
           <div className="space-y-2">

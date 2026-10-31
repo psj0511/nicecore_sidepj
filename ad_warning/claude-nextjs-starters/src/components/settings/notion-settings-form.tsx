@@ -1,9 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -14,59 +12,35 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import type { MockConnectionTest } from '@/lib/mock'
-import {
-  notionConfigFormSchema,
-  type NotionConfigFormValues,
-} from '@/lib/validations/notion-config'
+import { testNotionConnectionAction } from '@/lib/actions/notion-settings'
+import type { ConnectionCheck } from '@/lib/tickets/service'
+
+interface Item {
+  name: string
+  label: string
+  /** 표시용 값(토큰은 마스킹됨). 미설정이면 null */
+  value: string | null
+}
 
 interface Props {
-  initiallyConnected: boolean
-  maskedToken: string
-  testResult: MockConnectionTest
+  items: Item[]
   returnTo?: string
 }
 
-/** 더미 단계: 저장·연결 테스트는 화면 상태만 변경 (Task 011에서 실제 연동) */
-export function NotionSettingsForm({
-  initiallyConnected,
-  maskedToken,
-  testResult,
-  returnTo,
-}: Props) {
-  const [connected, setConnected] = useState(initiallyConnected)
-  const [tested, setTested] = useState<MockConnectionTest | null>(null)
+/** 연동 정보는 .env.local 에서만 설정한다. 이 화면은 설정 여부와 실제 연결을 확인한다 */
+export function NotionSettingsPanel({ items, returnTo }: Props) {
+  const [checks, setChecks] = useState<ConnectionCheck[] | null>(null)
+  const [pending, startTransition] = useTransition()
+  const configured = items.every(i => i.value)
+  const allOk = checks ? checks.every(c => c.ok) : false
 
-  const form = useForm<NotionConfigFormValues>({
-    resolver: zodResolver(notionConfigFormSchema),
-    defaultValues: { token: '', parentPageId: '', databaseId: '' },
-  })
-
-  const checks: [string, boolean, string?][] = tested
-    ? [
-        ['토큰 유효성', tested.tokenValid],
-        ['부모 페이지 접근', tested.parentPageAccessible],
-        [
-          `하위 데이터베이스 ${tested.databaseCount}개 발견`,
-          tested.databaseCount > 0,
-        ],
-        [
-          '티켓 데이터베이스 속성 일치',
-          tested.ticketDbMatches,
-          tested.ticketDbMessage,
-        ],
-      ]
-    : []
+  function runTest() {
+    startTransition(async () => {
+      const res = await testNotionConnectionAction()
+      if (res.ok) setChecks(res.data)
+      else toast.error(res.error)
+    })
+  }
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -74,85 +48,38 @@ export function NotionSettingsForm({
         <CardHeader>
           <CardTitle>연동 정보</CardTitle>
           <CardDescription>
-            토큰은 서버에서만 사용되며 화면에는 마스킹되어 표시됩니다.
+            값은 서버의 .env.local에서만 설정하며 앱에 저장하지 않습니다. 토큰은
+            마스킹되어 표시됩니다.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form
-              className="space-y-4"
-              onSubmit={form.handleSubmit(() => {
-                setConnected(true)
-                toast.success('Notion 연동 정보를 저장했습니다')
-              })}
-            >
-              <FormField
-                control={form.control}
-                name="token"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Notion 토큰</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="password"
-                        autoComplete="off"
-                        placeholder={connected ? maskedToken : 'secret_...'}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="parentPageId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>성과 데이터 부모 페이지 ID</FormLabel>
-                    <FormControl>
-                      <Input placeholder="페이지 ID 또는 URL" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      CSV를 가져온 부모 페이지입니다.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="databaseId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>티켓 데이터베이스 ID</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="데이터베이스 ID 또는 URL"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="flex flex-wrap gap-2">
-                <Button type="submit">저장</Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setTested(testResult)}
-                >
-                  연결 테스트
-                </Button>
+        <CardContent className="space-y-4">
+          <dl className="space-y-3 text-sm">
+            {items.map(i => (
+              <div key={i.name} className="flex items-center justify-between">
+                <dt>
+                  {i.label}
+                  <span className="text-muted-foreground block text-xs">
+                    {i.name}
+                  </span>
+                </dt>
+                <dd>
+                  {i.value ? (
+                    <span className="font-mono text-xs">{i.value}</span>
+                  ) : (
+                    <Badge variant="outline">미설정</Badge>
+                  )}
+                </dd>
               </div>
-              {connected && returnTo && (
-                <Button asChild variant="link" className="px-0">
-                  <Link href={returnTo}>← 이전 화면으로 돌아가기</Link>
-                </Button>
-              )}
-            </form>
-          </Form>
+            ))}
+          </dl>
+          <Button type="button" onClick={runTest} disabled={pending}>
+            {pending ? '확인 중…' : '연결 확인'}
+          </Button>
+          {allOk && returnTo && (
+            <Button asChild variant="link" className="px-0">
+              <Link href={returnTo}>← 이전 화면으로 돌아가기</Link>
+            </Button>
+          )}
         </CardContent>
       </Card>
 
@@ -162,11 +89,13 @@ export function NotionSettingsForm({
             <CardTitle>연동 상태</CardTitle>
           </CardHeader>
           <CardContent className="flex items-center gap-2 text-sm">
-            <Badge variant={connected ? 'secondary' : 'outline'}>
-              {connected ? '연동됨' : '미연동'}
+            <Badge variant={configured ? 'secondary' : 'outline'}>
+              {configured ? '설정됨' : '미연동'}
             </Badge>
-            {connected && (
-              <span className="text-muted-foreground">토큰 {maskedToken}</span>
+            {!configured && (
+              <span className="text-muted-foreground">
+                .env.local에 미설정 항목을 추가한 뒤 서버를 다시 시작하세요
+              </span>
             )}
           </CardContent>
         </Card>
@@ -176,26 +105,26 @@ export function NotionSettingsForm({
             <CardTitle>연결 테스트 결과</CardTitle>
           </CardHeader>
           <CardContent>
-            {!tested ? (
+            {!checks ? (
               <p className="text-muted-foreground text-sm">
-                &lsquo;연결 테스트&rsquo;를 실행하면 결과가 표시됩니다.
+                &lsquo;연결 확인&rsquo;을 실행하면 결과가 표시됩니다.
               </p>
             ) : (
               <ul className="space-y-2 text-sm" aria-live="polite">
-                {checks.map(([label, ok, note]) => (
-                  <li key={label}>
+                {checks.map(c => (
+                  <li key={c.label}>
                     <span
                       className={
-                        ok
+                        c.ok
                           ? 'text-green-600 dark:text-green-400'
                           : 'text-red-600 dark:text-red-400'
                       }
                     >
-                      {ok ? '✓' : '✗'}
+                      {c.ok ? '✓' : '✗'}
                     </span>{' '}
-                    {label}
-                    {!ok && note && (
-                      <p className="text-muted-foreground ml-5">{note}</p>
+                    {c.label}
+                    {!c.ok && c.note && (
+                      <p className="text-muted-foreground ml-5">{c.note}</p>
                     )}
                   </li>
                 ))}

@@ -1,6 +1,13 @@
 import { PageShell } from '@/components/layout/page-shell'
-import { NotionSettingsForm } from '@/components/settings/notion-settings-form'
-import { MOCK_NOTION_CONNECTED, mockConnectionTest } from '@/lib/mock'
+import { NotionSettingsPanel } from '@/components/settings/notion-settings-form'
+import { env } from '@/lib/env'
+
+export const dynamic = 'force-dynamic'
+
+/** 토큰은 앞 4자리만 보여 주고 나머지는 마스킹한다 */
+function maskToken(token: string) {
+  return `${token.slice(0, 4)}${'•'.repeat(8)}`
+}
 
 export default async function NotionSettingsPage({
   searchParams,
@@ -17,12 +24,26 @@ export default async function NotionSettingsPage({
   return (
     <PageShell
       title="Notion 연동 설정"
-      description="토큰, 부모 페이지, 티켓 데이터베이스 설정"
+      description="환경 변수로 설정된 토큰, 부모 페이지, 티켓 데이터베이스의 연결 상태"
     >
-      <NotionSettingsForm
-        initiallyConnected={MOCK_NOTION_CONNECTED}
-        maskedToken="secret_••••••••"
-        testResult={mockConnectionTest}
+      <NotionSettingsPanel
+        items={[
+          {
+            name: 'NOTION_TOKEN',
+            label: 'Notion 토큰',
+            value: env.NOTION_TOKEN ? maskToken(env.NOTION_TOKEN) : null,
+          },
+          {
+            name: 'NOTION_PARENT_PAGE_ID',
+            label: '성과 데이터 부모 페이지',
+            value: env.NOTION_PARENT_PAGE_ID ?? null,
+          },
+          {
+            name: 'NOTION_DATABASE_ID',
+            label: '티켓 데이터베이스',
+            value: env.NOTION_DATABASE_ID ?? null,
+          },
+        ]}
         returnTo={safeReturn}
       />
     </PageShell>

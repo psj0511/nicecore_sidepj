@@ -164,8 +164,6 @@ export const mockIssues: Issue[] = [
   },
 ]
 
-export const MOCK_NOTION_CONNECTED = true
-
 export function getMockRule(ruleId: string) {
   return mockRules.find(r => r.id === ruleId)
 }
@@ -223,20 +221,4 @@ export function getMockSummary(days: 7 | 30) {
       roas: rate(roas(cur), roas(prev)),
     },
   }
-}
-
-export interface MockConnectionTest {
-  tokenValid: boolean
-  parentPageAccessible: boolean
-  databaseCount: number
-  ticketDbMatches: boolean
-  ticketDbMessage?: string
-}
-
-export const mockConnectionTest: MockConnectionTest = {
-  tokenValid: true,
-  parentPageAccessible: true,
-  databaseCount: 3,
-  ticketDbMatches: false,
-  ticketDbMessage: "티켓 데이터베이스에 '심각도' 속성이 없습니다",
 }
