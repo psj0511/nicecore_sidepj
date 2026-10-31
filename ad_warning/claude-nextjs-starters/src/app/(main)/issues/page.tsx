@@ -19,6 +19,8 @@ import { runDetection } from '@/lib/detection/service'
 import { formatDate } from '@/lib/format'
 import { listIssues } from '@/lib/repositories/issues'
 import { listRules } from '@/lib/repositories/rules'
+import { Pagination } from '@/components/domain/pagination'
+import { paginate, parsePage } from '@/lib/pagination'
 import {
   ISSUE_STATUSES,
   SEVERITIES,
@@ -31,7 +33,12 @@ export const dynamic = 'force-dynamic'
 export default async function IssuesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; severity?: string; period?: string }>
+  searchParams: Promise<{
+    status?: string
+    severity?: string
+    period?: string
+    page?: string
+  }>
 }) {
   const sp = await searchParams
   const status = ISSUE_STATUSES.find(s => s === sp.status) as
@@ -56,6 +63,7 @@ export default async function IssuesPage({
     listRules(),
   ])
   const ruleById = new Map(rules.map(r => [r.id, r]))
+  const paged = paginate(issues, parsePage(sp.page))
 
   return (
     <PageShell title="이슈" description="감지된 이슈 목록">
@@ -98,7 +106,7 @@ export default async function IssuesPage({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {issues.map(issue => (
+              {paged.items.map(issue => (
                 <TableRow key={issue.id}>
                   <TableCell className="font-medium">
                     <Link
@@ -133,6 +141,17 @@ export default async function IssuesPage({
           </Table>
         </div>
       )}
+      <Pagination
+        basePath="/issues"
+        page={paged.page}
+        totalPages={paged.totalPages}
+        total={paged.total}
+        params={{
+          status: sp.status,
+          severity: sp.severity,
+          period: sp.period,
+        }}
+      />
     </PageShell>
   )
 }

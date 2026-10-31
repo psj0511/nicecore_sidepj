@@ -13,8 +13,12 @@ export function RefreshButton() {
       disabled={pending}
       onClick={() =>
         start(async () => {
-          await refreshSourcesAction()
-          toast.success('Notion에서 최신 데이터를 다시 읽었습니다')
+          try {
+            await refreshSourcesAction()
+            toast.success('Notion에서 최신 데이터를 다시 읽었습니다')
+          } catch {
+            toast.error('새로고침에 실패했습니다. 잠시 후 다시 시도해주세요')
+          }
         })
       }
     >

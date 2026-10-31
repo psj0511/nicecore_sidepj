@@ -359,4 +359,16 @@ describe('에러 핸들링', () => {
     expect(checks).toHaveLength(1)
     expect(checks[0]).toMatchObject({ label: '토큰 유효성', ok: false })
   })
+
+  it('읽기 범위: 최신 날짜 기준 N일 밖의 오래된 행은 서버에서 걸러 읽지 않는다', async () => {
+    fake.addSource('구글 성과', [
+      metricRow('2026-01-05'),
+      metricRow('2026-02-01'),
+      ...week(),
+    ])
+    expect(await listMetrics(ALL)).toHaveLength(9)
+    const windowed = await listMetrics(ALL, { windowDays: 90 })
+    expect(windowed).toHaveLength(7)
+    expect(windowed[0]?.date).toBe('2026-10-24')
+  })
 })

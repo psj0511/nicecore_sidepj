@@ -15,6 +15,8 @@ import { isStoreTitle } from './store'
 /** 실시간 조회 결과 캐시 시간(초). 이 시간 안의 재조회는 Notion을 다시 호출하지 않는다 */
 export const SOURCE_CACHE_SECONDS = 120
 export const SOURCE_CACHE_TAG = 'notion-sources'
+/** 대시보드·감지가 읽는 범위: 데이터의 최신 날짜 기준 최근 N일 (비교 기간 포함 여유분) */
+export const METRIC_WINDOW_DAYS = 90
 
 export interface SourceDatabase {
   /** child_database 블록 ID (= database ID) */
@@ -95,7 +97,50 @@ function rawValue(prop: RawProp | undefined): string | number | undefined {
   }
 }
 
-async function loadSource(database: SourceDatabase): Promise<SourceSnapshot> {
+function daysBefore(date: string, days: number): string {
+  const d = new Date(`${date.slice(0, 10)}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() - days)
+  return d.toISOString().slice(0, 10)
+}
+
+/**
+ * 날짜 속성이 Notion `date` 타입일 때만 최신 날짜 기준 N일 이전 행을 서버에서 걸러낸다.
+ * 텍스트 날짜(CSV 가져오기)이거나 행이 없으면 undefined → 전체 조회
+ */
+async function windowFilter(dataSourceId: string, windowDays: number) {
+  const notion = getNotion()
+  const probe = await notion.dataSources.query({
+    data_source_id: dataSourceId,
+    page_size: 1,
+  })
+  const first = probe.results[0]
+  if (!first || !('properties' in first)) return undefined
+  const name = resolveMetricProperty('date', first.properties)
+  const prop = name ? first.properties[name] : undefined
+  if (!name || prop?.type !== 'date') return undefined
+  const latest = await notion.dataSources.query({
+    data_source_id: dataSourceId,
+    page_size: 1,
+    sorts: [{ property: name, direction: 'descending' }],
+  })
+  const top = latest.results[0]
+  const topProp = top && 'properties' in top ? top.properties[name] : undefined
+  const start = topProp?.type === 'date' ? topProp.date?.start : undefined
+  if (!start || !/^\d{4}-\d{2}-\d{2}/.test(start)) return undefined
+  return {
+    and: [
+      {
+        property: name,
+        date: { on_or_after: daysBefore(start, windowDays) },
+      },
+    ],
+  }
+}
+
+async function loadSource(
+  database: SourceDatabase,
+  windowDays?: number
+): Promise<SourceSnapshot> {
   const notion = getNotion()
   const db = await notion.databases.retrieve({ database_id: database.id })
   const dataSourceId = 'data_sources' in db ? db.data_sources[0]?.id : undefined
@@ -110,7 +155,13 @@ async function loadSource(database: SourceDatabase): Promise<SourceSnapshot> {
     }
   }
 
-  const pages = await queryAll({ data_source_id: dataSourceId })
+  const filter = windowDays
+    ? await windowFilter(dataSourceId, windowDays)
+    : undefined
+  const pages = await queryAll({
+    data_source_id: dataSourceId,
+    filter: filter as never,
+  })
   const fields = Object.keys(METRIC_PROPERTY_NAMES) as MetricField[]
   const errors: SourceError[] = []
 
@@ -188,12 +239,14 @@ export const readSource = unstable_cache(loadSource, ['notion-source'], {
 })
 
 /** 모든 성과 DB를 읽는다. DB 하나가 실패해도 나머지는 계속 읽는다 */
-export async function readAllSources(): Promise<SourceSnapshot[]> {
+export async function readAllSources(
+  windowDays?: number
+): Promise<SourceSnapshot[]> {
   const databases = await listSourceDatabases()
   return Promise.all(
     databases.map(async db => {
       try {
-        return await readSource(db)
+        return await readSource(db, windowDays)
       } catch (e) {
         return {
           database: db,
@@ -213,11 +266,11 @@ export async function readAllSources(): Promise<SourceSnapshot[]> {
 }
 
 /** 기간 내 지표를 모두 모아 반환한다 (감지·대시보드용) */
-export async function listMetrics(range: {
-  from: string
-  to: string
-}): Promise<AdMetric[]> {
-  const snapshots = await readAllSources()
+export async function listMetrics(
+  range: { from: string; to: string },
+  opts: { windowDays?: number } = {}
+): Promise<AdMetric[]> {
+  const snapshots = await readAllSources(opts.windowDays)
   return snapshots
     .flatMap(s => s.metrics)
     .filter(m => m.date >= range.from && m.date <= range.to)

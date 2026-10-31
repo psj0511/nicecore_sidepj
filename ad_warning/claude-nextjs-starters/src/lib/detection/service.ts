@@ -1,5 +1,5 @@
 import 'server-only'
-import { listMetrics } from '@/lib/notion/sources'
+import { METRIC_WINDOW_DAYS, listMetrics } from '@/lib/notion/sources'
 import { insertIssuesIgnoreDuplicates } from '@/lib/repositories/issues'
 import { listRules } from '@/lib/repositories/rules'
 import { createDetectionRunner } from './run'
@@ -11,6 +11,10 @@ import { createDetectionRunner } from './run'
 export const runDetection = createDetectionRunner({
   listRules,
   // 전체 이력을 읽어야 직전 7일 평균을 낼 수 있다. 평가는 대상별 최신일만 한다
-  listMetrics: () => listMetrics({ from: '0000-01-01', to: '9999-12-31' }),
+  listMetrics: () =>
+    listMetrics(
+      { from: '0000-01-01', to: '9999-12-31' },
+      { windowDays: METRIC_WINDOW_DAYS }
+    ),
   insertIssues: insertIssuesIgnoreDuplicates,
 })

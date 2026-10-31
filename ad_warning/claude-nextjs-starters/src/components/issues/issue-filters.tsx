@@ -24,6 +24,7 @@ export function IssueFilters() {
     const next = new URLSearchParams(params.toString())
     if (value === 'all') next.delete(key)
     else next.set(key, value)
+    next.delete('page')
     const qs = next.toString()
     router.push(qs ? `${pathname}?${qs}` : pathname)
   }

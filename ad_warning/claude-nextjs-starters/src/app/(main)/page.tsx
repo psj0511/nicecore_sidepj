@@ -17,7 +17,7 @@ import {
 import { dailySeries, summarize } from '@/lib/dashboard/summary'
 import { runDetection } from '@/lib/detection/service'
 import { formatKRW, formatNumber, formatRoas } from '@/lib/format'
-import { listMetrics } from '@/lib/notion/sources'
+import { METRIC_WINDOW_DAYS, listMetrics } from '@/lib/notion/sources'
 import { listIssues } from '@/lib/repositories/issues'
 import { listRules } from '@/lib/repositories/rules'
 import {
@@ -41,7 +41,10 @@ export default async function DashboardPage({
   const days = period === '30' ? 30 : 7
 
   // 성과 데이터는 조회 시점에 Notion 에서 직접 읽는다 (2분 캐시). 이전 기간 비교를 위해 2배 기간이 필요하다
-  const metrics = await listMetrics({ from: '0000-01-01', to: '9999-12-31' })
+  const metrics = await listMetrics(
+    { from: '0000-01-01', to: '9999-12-31' },
+    { windowDays: METRIC_WINDOW_DAYS }
+  )
     .then(rows => ({ rows, error: null as string | null }))
     .catch((e: unknown) => ({
       rows: [],
