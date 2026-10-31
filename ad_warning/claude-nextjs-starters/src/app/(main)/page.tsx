@@ -14,20 +14,20 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { dailySeries, summarize } from '@/lib/dashboard/summary'
+import { runDetection } from '@/lib/detection/service'
 import { formatKRW, formatNumber, formatRoas } from '@/lib/format'
-import {
-  getIssueTitle,
-  getMockDailyMetrics,
-  getMockIssues,
-  getMockSummary,
-  mockMetrics,
-} from '@/lib/mock'
+import { listMetrics } from '@/lib/notion/sources'
+import { listIssues } from '@/lib/repositories/issues'
+import { listRules } from '@/lib/repositories/rules'
 import {
   ISSUE_STATUS_LABELS,
   SEVERITIES,
   SEVERITY_LABELS,
   type IssueStatus,
 } from '@/types'
+
+export const dynamic = 'force-dynamic'
 
 const OPEN_STATUSES: IssueStatus[] = ['new', 'in_progress']
 
@@ -40,15 +40,25 @@ export default async function DashboardPage({
   const period = raw === '30' ? '30' : '7'
   const days = period === '30' ? 30 : 7
 
-  // TODO(Task 010): 더미 데이터를 실제 조회로 교체
-  const hasData = mockMetrics.length > 0
+  // 성과 데이터는 조회 시점에 Notion 에서 직접 읽는다 (2분 캐시). 이전 기간 비교를 위해 2배 기간이 필요하다
+  const metrics = await listMetrics({ from: '0000-01-01', to: '9999-12-31' })
+    .then(rows => ({ rows, error: null as string | null }))
+    .catch((e: unknown) => ({
+      rows: [],
+      error: e instanceof Error ? e.message : 'Notion 조회 실패',
+    }))
+  const hasData = metrics.rows.length > 0
 
   if (!hasData) {
     return (
       <PageShell title="대시보드" description="핵심 지표와 미해결 이슈">
         <EmptyState
           title="아직 읽어 온 데이터가 없습니다"
-          description="Notion 성과 데이터베이스가 연결되면 지표와 이슈가 실시간으로 표시됩니다."
+          description={
+            metrics.error
+              ? `Notion 데이터를 읽지 못했습니다: ${metrics.error}`
+              : 'Notion 성과 데이터베이스가 연결되면 지표와 이슈가 실시간으로 표시됩니다.'
+          }
           action={
             <Button asChild>
               <Link href="/sources">데이터 연결 상태 확인하기</Link>
@@ -59,12 +69,20 @@ export default async function DashboardPage({
     )
   }
 
-  const summary = getMockSummary(days)
-  const trend = getMockDailyMetrics(days)
-  const openIssues = getMockIssues().filter(i =>
-    OPEN_STATUSES.includes(i.status)
-  )
-  const recent = getMockIssues().slice(0, 5)
+  const summary = summarize(metrics.rows, days)
+  const trend = dailySeries(metrics.rows, days)
+
+  // 최신 데이터로 감지를 실행한 뒤 이슈를 읽는다. 실패해도 대시보드는 표시한다
+  await runDetection().catch(() => undefined)
+  const [issues, rules] = await Promise.all([
+    listIssues().catch(() => []),
+    listRules().catch(() => []),
+  ])
+  const ruleById = new Map(rules.map(r => [r.id, r]))
+  const getIssueTitle = (i: (typeof issues)[number]) =>
+    `${ruleById.get(i.rule_id)?.type ?? '이상 감지'} · ${i.target}`
+  const openIssues = issues.filter(i => OPEN_STATUSES.includes(i.status))
+  const recent = issues.slice(0, 5)
 
   return (
     <PageShell title="대시보드" description="핵심 지표와 미해결 이슈">
