@@ -43,7 +43,7 @@ export interface SourceSnapshot {
 const norm = (id: string) => id.replace(/-/g, '').toLowerCase()
 
 /** 부모 페이지 하위 데이터베이스 중 앱 데이터 DB와 티켓 DB를 제외한 성과 DB 목록 */
-export async function listSourceDatabases(): Promise<SourceDatabase[]> {
+async function fetchSourceDatabases(): Promise<SourceDatabase[]> {
   const notion = getNotion()
   const parentId = getParentPageId()
   const ticketId = env.NOTION_DATABASE_ID && norm(env.NOTION_DATABASE_ID)
@@ -65,6 +65,16 @@ export async function listSourceDatabases(): Promise<SourceDatabase[]> {
   } while (cursor)
   return out
 }
+
+/** 하위 DB 목록도 짧게 캐시해 페이지 요청마다 Notion을 호출하지 않는다 */
+export const listSourceDatabases = unstable_cache(
+  fetchSourceDatabases,
+  ['notion-source-list'],
+  { revalidate: SOURCE_CACHE_SECONDS, tags: [SOURCE_CACHE_TAG] }
+)
+
+/** Notion 한도(초당 ~3건) 초과를 피하기 위한 동시 조회 DB 수 */
+const SOURCE_CONCURRENCY = 2
 
 type RawProp = Record<string, unknown> & { type: string }
 
@@ -243,12 +253,17 @@ export async function readAllSources(
   windowDays?: number
 ): Promise<SourceSnapshot[]> {
   const databases = await listSourceDatabases()
-  return Promise.all(
-    databases.map(async db => {
+  const results: SourceSnapshot[] = new Array(databases.length)
+  let next = 0
+  // 워커 N개가 큐에서 하나씩 꺼내 처리 → 동시 요청 수 제한
+  const worker = async () => {
+    while (next < databases.length) {
+      const i = next++
+      const db = databases[i]!
       try {
-        return await readSource(db, windowDays)
+        results[i] = await readSource(db, windowDays)
       } catch (e) {
-        return {
+        results[i] = {
           database: db,
           rowCount: 0,
           metrics: [],
@@ -261,8 +276,15 @@ export async function readAllSources(
           fetchedAt: new Date().toISOString(),
         }
       }
-    })
+    }
+  }
+  await Promise.all(
+    Array.from(
+      { length: Math.min(SOURCE_CONCURRENCY, databases.length) },
+      worker
+    )
   )
+  return results
 }
 
 /** 기간 내 지표를 모두 모아 반환한다 (감지·대시보드용) */

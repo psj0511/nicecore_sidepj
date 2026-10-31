@@ -50,7 +50,28 @@ export default async function SourcesPage() {
     )
   }
 
-  const sources = await readAllSources()
+  let sources: Awaited<ReturnType<typeof readAllSources>>
+  try {
+    sources = await readAllSources()
+  } catch (e) {
+    return (
+      <PageShell
+        title="데이터 연결 상태"
+        description="Notion 성과 데이터베이스 실시간 연동 상태"
+      >
+        <Alert variant="destructive">
+          <AlertTitle>Notion 조회에 실패했습니다</AlertTitle>
+          <AlertDescription>
+            {e instanceof Error ? e.message : '알 수 없는 오류'} — 요청이 많을
+            때 일시적으로 발생할 수 있습니다. 잠시 후 새로고침해 주세요.
+          </AlertDescription>
+        </Alert>
+        <div className="mt-4 flex justify-end">
+          <RefreshButton />
+        </div>
+      </PageShell>
+    )
+  }
   const errors = sources.flatMap(s =>
     s.errors.map(e => ({ database: s.database.title, ...e }))
   )
