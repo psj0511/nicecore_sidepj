@@ -1,0 +1,105 @@
+import type { AdMetric, DetectionRule, Issue, TargetSeries } from '@/types'
+import { isWeekendOrHoliday } from './calendar'
+import { EVALUATORS } from './rules'
+
+/** insertIssuesIgnoreDuplicates 에 그대로 넘길 수 있는 이슈 초안 */
+export type IssueDraft = Omit<
+  Issue,
+  'id' | 'detected_at' | 'status' | 'memo' | 'notion_url'
+>
+
+export interface SourceSeries {
+  sourceId: string
+  series: TargetSeries
+}
+
+export interface DetectionRun {
+  issues: IssueDraft[]
+  /** 규칙을 실제로 평가한 횟수 */
+  evaluated: number
+  /** 최소 규모·데이터 부족 등으로 평가 제외된 횟수 */
+  skipped: number
+}
+
+/** 평가 단위: 구글 = 캠페인, 네이버 = 광고그룹(없으면 캠페인) */
+export function evaluationTarget(m: AdMetric): string {
+  return m.channel === 'naver' ? m.ad_group || m.campaign : m.campaign
+}
+
+/** 성과 행을 (원본 DB, 채널, 평가 대상)별 시계열로 묶는다 */
+export function buildSeries(metrics: AdMetric[]): SourceSeries[] {
+  const map = new Map<string, SourceSeries>()
+  for (const m of metrics) {
+    const target = evaluationTarget(m)
+    const key = `${m.source_id}|${m.channel}|${target}`
+    let entry = map.get(key)
+    if (!entry) {
+      entry = {
+        sourceId: m.source_id,
+        series: { channel: m.channel, target, metrics: [] },
+      }
+      map.set(key, entry)
+    }
+    entry.series.metrics.push(m)
+  }
+  for (const e of map.values()) {
+    e.series.metrics.sort((a, b) => a.date.localeCompare(b.date))
+  }
+  return [...map.values()]
+}
+
+export interface DetectOptions {
+  /** 평가할 대상일. 생략하면 시계열별 가장 최근 날짜 */
+  targetDates?: string[]
+}
+
+/**
+ * 활성 1단계 규칙을 모든 시계열에 적용해 이슈 초안을 만든다.
+ * 순수 함수 — 저장과 중복 제거(감지 키)는 호출 쪽에서 한다.
+ */
+export function detect(
+  metrics: AdMetric[],
+  rules: DetectionRule[],
+  options: DetectOptions = {}
+): DetectionRun {
+  const activeRules = rules.filter(r => r.is_active && r.stage === 1)
+  const run: DetectionRun = { issues: [], evaluated: 0, skipped: 0 }
+
+  for (const { sourceId, series } of buildSeries(metrics)) {
+    const latest = series.metrics[series.metrics.length - 1]?.date
+    const dates =
+      options.targetDates?.filter(d =>
+        series.metrics.some(m => m.date === d)
+      ) ?? (latest ? [latest] : [])
+
+    for (const targetDate of dates) {
+      for (const rule of activeRules) {
+        const result = EVALUATORS[rule.rule_code]({
+          sourceId,
+          series,
+          targetDate,
+          rule,
+          isWeekendOrHoliday: isWeekendOrHoliday(targetDate),
+        })
+        if (result.skipped) {
+          run.skipped++
+          continue
+        }
+        run.evaluated++
+        if (!result.triggered) continue
+        run.issues.push({
+          rule_id: rule.id,
+          source_id: sourceId,
+          target: series.target,
+          target_date: targetDate,
+          detection_key: result.detectionKey!,
+          severity: result.severity!,
+          baseline_value: result.baselineValue!,
+          actual_value: result.actualValue!,
+          weekend_note: result.weekendNote ?? null,
+        })
+      }
+    }
+  }
+  return run
+}

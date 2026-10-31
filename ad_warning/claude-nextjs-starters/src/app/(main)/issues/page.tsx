@@ -14,6 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { runDetection } from '@/lib/detection/service'
 import { formatDate } from '@/lib/format'
 import { listIssues } from '@/lib/repositories/issues'
 import { listRules } from '@/lib/repositories/rules'
@@ -40,6 +42,15 @@ export default async function IssuesPage({
     | undefined
   const days = sp.period === '7' ? 7 : sp.period === '30' ? 30 : undefined
 
+  // 조회 시점에 최신 성과 데이터로 감지를 실행한다. 실패해도 목록은 보여 준다
+  const detection = await runDetection().then(
+    summary => ({ summary, error: null }),
+    (e: unknown) => ({
+      summary: null,
+      error: e instanceof Error ? e.message : '감지 실행 실패',
+    })
+  )
+
   const [issues, rules] = await Promise.all([
     listIssues({ status, severity, days }),
     listRules(),
@@ -48,6 +59,22 @@ export default async function IssuesPage({
 
   return (
     <PageShell title="이슈" description="감지된 이슈 목록">
+      {detection.summary ? (
+        <Alert role="status">
+          <AlertTitle>
+            이번 조회에서 새 이슈 {detection.summary.created}건 생성
+          </AlertTitle>
+          <AlertDescription>
+            규칙 평가 {detection.summary.evaluated}건 · 평가 제외{' '}
+            {detection.summary.skipped}건 (최소 규모 미달·비교 데이터 부족)
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <Alert variant="destructive" role="alert">
+          <AlertTitle>이상 감지를 실행하지 못했습니다</AlertTitle>
+          <AlertDescription>{detection.error}</AlertDescription>
+        </Alert>
+      )}
       <IssueFilters />
       {issues.length === 0 ? (
         <EmptyState

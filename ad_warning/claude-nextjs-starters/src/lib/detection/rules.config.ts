@@ -96,6 +96,27 @@ export const RULE_DEFAULTS: Record<RuleCode, RuleDefault> = {
   },
 }
 
+/**
+ * 매년 같은 날짜인 공휴일(MM-DD): 신정, 삼일절, 어린이날, 현충일, 광복절,
+ * 개천절, 한글날, 성탄절
+ */
+export const FIXED_HOLIDAYS: readonly string[] = [
+  '01-01',
+  '03-01',
+  '05-05',
+  '06-06',
+  '08-15',
+  '10-03',
+  '10-09',
+  '12-25',
+]
+
+/**
+ * 음력 명절(설날·추석·부처님오신날), 대체공휴일, 임시공휴일 등 해마다 달라지는
+ * 휴일(YYYY-MM-DD). 운영자가 직접 채운다 — 비어 있으면 주말과 고정 공휴일만 완화한다.
+ */
+export const EXTRA_HOLIDAYS: readonly string[] = []
+
 export const WEEKEND_NOTE = '주말·공휴일 가능성'
 
 /** 감지 키: 규칙+대상+날짜 */
