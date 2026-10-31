@@ -126,7 +126,9 @@ export default async function SourcesPage() {
             )}
             <p className="text-muted-foreground text-xs">
               필수 속성: {Object.values(METRIC_PROPERTY_NAMES).join(', ')}{' '}
-              (광고그룹은 선택)
+              (광고그룹은 선택). 구글 Ads·네이버 검색광고 보고서의 원본 컬럼명
+              (보고일·일별, 매체, 비용, 클릭수, 노출수, 전환수, 전환 가치 등)도
+              그대로 인식합니다.
             </p>
           </CardContent>
         </Card>

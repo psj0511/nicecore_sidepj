@@ -7,6 +7,7 @@ import { getNotion, getParentPageId, queryAll } from './client'
 import {
   METRIC_PROPERTY_NAMES,
   OPTIONAL_METRIC_FIELDS,
+  resolveMetricProperty,
   type MetricField,
 } from './properties'
 import { isStoreTitle } from './store'
@@ -118,7 +119,7 @@ async function loadSource(database: SourceDatabase): Promise<SourceSnapshot> {
     const present = pages[0]!.properties
     for (const f of fields) {
       if (OPTIONAL_METRIC_FIELDS.includes(f)) continue
-      if (!(METRIC_PROPERTY_NAMES[f] in present)) {
+      if (!resolveMetricProperty(f, present)) {
         errors.push({
           row: 0,
           reason: `필수 속성 '${METRIC_PROPERTY_NAMES[f]}'이(가) 없습니다`,
@@ -136,16 +137,25 @@ async function loadSource(database: SourceDatabase): Promise<SourceSnapshot> {
     }
   }
 
+  // 첫 행 기준으로 필드별 실제 속성명을 확정한다 (별칭 포함)
+  const firstProps = pages[0]?.properties ?? {}
+  const propName = Object.fromEntries(
+    fields.map(f => [
+      f,
+      resolveMetricProperty(f, firstProps) ?? METRIC_PROPERTY_NAMES[f],
+    ])
+  ) as Record<MetricField, string>
+
   const metrics: AdMetric[] = []
   pages.forEach((page, i) => {
     const props = page.properties as unknown as Record<string, RawProp>
     const raw = Object.fromEntries(
-      fields.map(f => [f, rawValue(props[METRIC_PROPERTY_NAMES[f]])])
+      fields.map(f => [f, rawValue(props[propName[f]])])
     )
     const parsed = notionMetricRowSchema.safeParse(raw)
     if (!parsed.success) {
       const issue = parsed.error.issues[0]
-      const label = METRIC_PROPERTY_NAMES[issue?.path[0] as MetricField]
+      const label = propName[issue?.path[0] as MetricField]
       errors.push({
         row: i + 1,
         reason: `'${label ?? '행'}': ${issue?.message ?? '형식 오류'}`,

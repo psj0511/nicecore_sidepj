@@ -14,13 +14,16 @@ const envSchema = z.object({
   NOTION_DATABASE_ID: z.string().min(1).optional(),
 })
 
+/** 빈 문자열(`KEY=`)은 미설정으로 취급한다 */
+const blankToUndefined = (v: string | undefined) => (v?.trim() ? v : undefined)
+
 export const env = envSchema.parse({
   NODE_ENV: process.env.NODE_ENV,
   VERCEL_URL: process.env.VERCEL_URL,
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-  NOTION_TOKEN: process.env.NOTION_TOKEN,
-  NOTION_PARENT_PAGE_ID: process.env.NOTION_PARENT_PAGE_ID,
-  NOTION_DATABASE_ID: process.env.NOTION_DATABASE_ID,
+  NOTION_TOKEN: blankToUndefined(process.env.NOTION_TOKEN),
+  NOTION_PARENT_PAGE_ID: blankToUndefined(process.env.NOTION_PARENT_PAGE_ID),
+  NOTION_DATABASE_ID: blankToUndefined(process.env.NOTION_DATABASE_ID),
 })
 
 export type Env = z.infer<typeof envSchema>
