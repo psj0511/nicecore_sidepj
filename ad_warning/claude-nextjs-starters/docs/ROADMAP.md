@@ -175,7 +175,7 @@ Notion에 올린 광고 성과 CSV에서 이상 징후를 자동으로 찾아 �
   - 읽기 범위 축소: 대시보드·감지는 `listMetrics(range, { windowDays: METRIC_WINDOW_DAYS })`로 **데이터 최신 날짜 기준 90일**만 Notion에서 서버 필터로 읽음(날짜 속성이 `date` 타입일 때만. 텍스트 날짜·형식 이상·빈 DB는 전체 조회로 대체). `/sources`는 검증 오류 전수 보고를 위해 전체 조회 유지. 통합 테스트 1건 추가
   - 한계: 이슈 페이지네이션은 전체 조회 후 메모리 분할이라 Notion 부하는 그대로, 화면 단위 접근성·모바일 실측 점검과 Playwright 화면 검증은 미실시
 
-- **Task 013: 성능 최적화 및 배포**
+- **Task 013: 성능 최적화 및 배포** ✅
   - 실시간 조회 캐싱 전략 점검 (`unstable_cache` 2분 + 태그 재검증), 대량 행 조회 지연 점검
   - 감지 엔진 성능 점검 (대량 행 기준)
   - GitHub Actions CI(`check-all`, 테스트) 및 Vercel 배포, 환경 변수 구성
@@ -184,7 +184,8 @@ Notion에 올린 광고 성과 CSV에서 이상 징후를 자동으로 찾아 �
   - 진행 상황: 감지 엔진 성능 점검 완료(`engine.perf.test.ts`, 1,000캠페인×90일≈9만 행 약 1초), GitHub Actions CI 추가(`.github/workflows/ci.yml`), `check-all`·`build` 통과 확인
   - 배포: Vercel 프로덕션(`nicecore-sidepj.vercel.app`) 배포 완료, Notion 환경 변수 3종 등록. Vercel이 취약 버전(CVE-2025-66478)으로 15.5.3 배포를 차단해 Next.js를 15.5.28로 업그레이드
   - 로깅: 별도 도구 없이 Vercel 기본 런타임 로그 사용
-  - 미완: 실제 Notion 기준 캐시·지연 점검 (배포 후 실데이터로 확인 필요)
+  - 배포 확인: 프로덕션에서 `/issues`·`/sources` 접속 시 오류 없음(사용자 확인)
+  - 한계: 캐시 적중률·대량 행 조회 지연은 실데이터 기준으로 수치 측정하지 않음 (스모크 확인만)
 
 ## MVP 이후 (백로그)
 
