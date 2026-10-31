@@ -58,14 +58,14 @@ Notion에 올린 광고 성과 CSV에서 이상 징후를 자동으로 찾아 �
 
 ### Phase 1: 애플리케이션 골격 구축
 
-- **Task 001: 프로젝트 구조 및 라우팅 설정** - 우선순위
+- **Task 001: 프로젝트 구조 및 라우팅 설정** ✅
   - App Router 라우트 생성: `/`(대시보드), `/sync`, `/rules`, `/issues`, `/issues/[id]`, `/settings/notion`
   - 모든 페이지의 빈 껍데기 파일 및 `loading.tsx`/`error.tsx` 골격 생성
   - 공통 레이아웃(사이드바/헤더) 및 5개 메뉴 내비게이션 골격 구현 (대시보드, 데이터 수집 관리, 감지 규칙 관리, 이슈, Notion 연동 설정)
   - 스타터 템플릿의 불필요한 예제 페이지 정리 및 `docs/guides/project-structure.md` 기준 폴더 구조 확정
   - 수락 기준: 모든 메뉴를 클릭해 빈 페이지 간 이동 가능, `npm run check-all` 통과
 
-- **Task 002: 타입 정의 및 데이터 모델 설계**
+- **Task 002: 타입 정의 및 데이터 모델 설계** ✅
   - `DataSync`, `AdMetric`, `DetectionRule`, `Issue`, `NotionConfig`(token, parent_page_id, database_id) TypeScript 타입 정의 (`src/types/`)
   - 열거형 정의: 채널(구글/네이버), 심각도(긴급·높음·보통), 이슈 상태(신규·진행중·해결·무시), 동기화 상태, 규칙 stage(1/2)
   - Supabase(PostgreSQL) 스키마 SQL 설계 (적용 제외): 감지 키 `detection_key` unique 제약, `DataSync.notion_database_id` unique, 인덱스(`date`, `sync_id`) 포함
@@ -75,19 +75,19 @@ Notion에 올린 광고 성과 CSV에서 이상 징후를 자동으로 찾아 �
 
 ### Phase 2: UI/UX 완성 (더미 데이터 활용)
 
-- **Task 003: 공통 컴포넌트 라이브러리 구현**
+- **Task 003: 공통 컴포넌트 라이브러리 구현** ✅
   - shadcn/ui 컴포넌트 추가: button, card, table, badge, select, input, switch, dialog, tabs, toast, form, textarea, skeleton
   - 도메인 공통 컴포넌트: `SeverityBadge`(긴급·높음·보통), `StatusBadge`(신규·진행중·해결·무시), `MetricCard`, `EmptyState`, `PeriodSelect`(7일/30일)
   - 더미 데이터 유틸리티 작성 (`src/lib/mock/`): 동기화 이력, 일자별 지표, 규칙 R1~R8, 이슈 목록
   - Recharts 기반 일자별 지표 추이 차트 컴포넌트 (다크모드 대응)
 
-- **Task 004: 대시보드 및 이슈 페이지 UI 완성**
+- **Task 004: 대시보드 및 이슈 페이지 UI 완성** ✅
   - 대시보드: 기간 선택, 핵심 지표 카드(광고비·클릭·전환·ROAS), 추이 차트, 상태·심각도별 미해결 이슈 수, 최근 이슈, 데이터 없음(동기화 안내)
   - 이슈 목록: 상태·심각도·기간 필터, 최신순 정렬, Notion 티켓 여부 표시
   - 이슈 상세: 감지 근거(규칙·비교 기준·기준값·실제값·대상), 의심 원인, 주말·공휴일 안내, 상태 변경, 메모, Notion 티켓 생성 버튼(링크 표시/비활성 상태 포함)
   - 반응형 디자인 및 접근성 기준 적용
 
-- **Task 005: 데이터 수집·규칙·Notion 설정 페이지 UI 완성**
+- **Task 005: 데이터 수집·규칙·Notion 설정 페이지 UI 완성** ✅
   - 데이터 수집 관리: 부모 페이지 하위 데이터베이스 목록(선택·전체 선택), 동기화 버튼, 검증 오류 행 안내, 동기화 이력 테이블, 삭제 확인 다이얼로그, 감지 결과 요약(생성 이슈 수·평가 제외 대상 수), Notion 미연동 안내
   - 감지 규칙 관리: 규칙 목록, 임계값 수정 폼(React Hook Form + Zod), R5 목표값(리드형 CPA / 이커머스형 ROAS) 입력, 활성 토글
   - R7·R8은 "2단계 데이터 필요"로 표시하고 활성화 불가 처리
