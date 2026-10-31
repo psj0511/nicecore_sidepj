@@ -9,9 +9,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { RULE_DEFAULTS } from '@/lib/detection/rules.config'
 import { RULE_DISPLAY } from '@/lib/detection/rule-display'
+import { env } from '@/lib/env'
 import { formatDate } from '@/lib/format'
 import { getIssue } from '@/lib/repositories/issues'
-import { getNotionConfig } from '@/lib/repositories/notion-config'
 import { listRules } from '@/lib/repositories/rules'
 
 export const dynamic = 'force-dynamic'
@@ -26,10 +26,7 @@ export default async function IssueDetailPage({
   const issue = await getIssue(id)
   if (!issue) notFound()
 
-  const [rules, notionConfig] = await Promise.all([
-    listRules(),
-    getNotionConfig(),
-  ])
+  const rules = await listRules()
   const rule = rules.find(r => r.id === issue.rule_id)
   const code = rule?.rule_code
   const display = code ? RULE_DISPLAY[code] : undefined
@@ -110,7 +107,9 @@ export default async function IssueDetailPage({
           <CardContent>
             <IssueActions
               issue={issue}
-              notionConnected={Boolean(notionConfig)}
+              notionConnected={Boolean(
+                env.NOTION_TOKEN && env.NOTION_DATABASE_ID
+              )}
             />
           </CardContent>
         </Card>

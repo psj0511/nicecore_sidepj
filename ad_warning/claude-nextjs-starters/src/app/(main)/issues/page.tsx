@@ -52,7 +52,7 @@ export default async function IssuesPage({
       {issues.length === 0 ? (
         <EmptyState
           title="조건에 맞는 이슈가 없습니다"
-          description="필터를 변경하거나 데이터를 동기화해 보세요."
+          description="필터를 변경해 보세요."
         />
       ) : (
         <div className="overflow-x-auto rounded-md border">

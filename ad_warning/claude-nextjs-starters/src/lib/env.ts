@@ -6,19 +6,21 @@ const envSchema = z.object({
     .default('development'),
   VERCEL_URL: z.string().optional(),
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1).optional(),
   /** 서버 전용. 절대 NEXT_PUBLIC_ 접두사를 붙이지 않는다 */
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
+  NOTION_TOKEN: z.string().min(1).optional(),
+  /** 앱 데이터 DB(규칙·이슈)와 성과 DB를 두는 부모 페이지 */
+  NOTION_PARENT_PAGE_ID: z.string().min(1).optional(),
+  /** 이슈 티켓을 생성할 데이터베이스 */
+  NOTION_DATABASE_ID: z.string().min(1).optional(),
 })
 
 export const env = envSchema.parse({
   NODE_ENV: process.env.NODE_ENV,
   VERCEL_URL: process.env.VERCEL_URL,
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-  NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  NOTION_TOKEN: process.env.NOTION_TOKEN,
+  NOTION_PARENT_PAGE_ID: process.env.NOTION_PARENT_PAGE_ID,
+  NOTION_DATABASE_ID: process.env.NOTION_DATABASE_ID,
 })
 
 export type Env = z.infer<typeof envSchema>

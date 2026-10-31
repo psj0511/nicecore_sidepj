@@ -27,13 +27,6 @@ export const ISSUE_STATUS_LABELS: Record<IssueStatus, string> = {
   ignored: '무시',
 }
 
-export const SYNC_STATUSES = ['success', 'failed'] as const
-export type SyncStatus = (typeof SYNC_STATUSES)[number]
-export const SYNC_STATUS_LABELS: Record<SyncStatus, string> = {
-  success: '성공',
-  failed: '실패',
-}
-
 export const RULE_CODES = [
   'R1',
   'R2',

@@ -4,7 +4,7 @@ import {
   buildDetectionKey,
 } from '@/lib/detection/rules.config'
 import { RULE_CODES } from '@/types'
-import type { AdMetric, DataSync, DetectionRule, Issue } from '@/types'
+import type { AdMetric, DetectionRule, Issue } from '@/types'
 import type { DailyMetric } from '@/components/domain/metric-trend-chart'
 
 const BASE_DATE = new Date('2026-10-30T00:00:00Z')
@@ -15,32 +15,8 @@ function dateOffset(daysAgo: number) {
   return d.toISOString().slice(0, 10)
 }
 
-export const mockSyncs: DataSync[] = [
-  {
-    id: 'sync-1',
-    notion_database_id: 'a'.repeat(32),
-    title: '구글 광고 성과 10월',
-    status: 'success',
-    row_count: 120,
-    synced_at: '2026-10-30T09:00:00Z',
-  },
-  {
-    id: 'sync-2',
-    notion_database_id: 'b'.repeat(32),
-    title: '네이버 광고 성과 10월',
-    status: 'success',
-    row_count: 90,
-    synced_at: '2026-10-29T09:00:00Z',
-  },
-  {
-    id: 'sync-3',
-    notion_database_id: 'c'.repeat(32),
-    title: '네이버 광고 성과 9월',
-    status: 'failed',
-    row_count: 0,
-    synced_at: '2026-10-28T09:00:00Z',
-  },
-]
+const SOURCE_GOOGLE = 'a'.repeat(32)
+const SOURCE_NAVER = 'b'.repeat(32)
 
 /** 결정적 의사 난수 (SSR/CSR 불일치 방지) */
 function wave(i: number, amp: number) {
@@ -51,7 +27,7 @@ export const mockMetrics: AdMetric[] = Array.from({ length: 30 }, (_, i) => {
   const n = 29 - i
   return {
     id: `metric-${i}`,
-    sync_id: 'sync-1',
+    source_id: SOURCE_GOOGLE,
     date: dateOffset(n),
     channel: 'google' as const,
     campaign: '브랜드 검색',
@@ -93,7 +69,7 @@ export const mockIssues: Issue[] = [
   {
     id: '1',
     rule_id: 'rule-R4',
-    sync_id: 'sync-1',
+    source_id: SOURCE_GOOGLE,
     target: '브랜드 검색',
     target_date: dateOffset(1),
     detection_key: buildDetectionKey('R4', '브랜드 검색', dateOffset(1)),
@@ -109,7 +85,7 @@ export const mockIssues: Issue[] = [
   {
     id: '2',
     rule_id: 'rule-R1',
-    sync_id: 'sync-2',
+    source_id: SOURCE_NAVER,
     target: '파워링크 A그룹',
     target_date: dateOffset(2),
     detection_key: buildDetectionKey('R1', '파워링크 A그룹', dateOffset(2)),
@@ -125,7 +101,7 @@ export const mockIssues: Issue[] = [
   {
     id: '3',
     rule_id: 'rule-R5',
-    sync_id: 'sync-1',
+    source_id: SOURCE_GOOGLE,
     target: '일반 키워드',
     target_date: dateOffset(3),
     detection_key: buildDetectionKey('R5', '일반 키워드', dateOffset(3)),
@@ -141,7 +117,7 @@ export const mockIssues: Issue[] = [
   {
     id: '4',
     rule_id: 'rule-R2',
-    sync_id: 'sync-2',
+    source_id: SOURCE_NAVER,
     target: '파워링크 B그룹',
     target_date: dateOffset(4),
     detection_key: buildDetectionKey('R2', '파워링크 B그룹', dateOffset(4)),
@@ -157,7 +133,7 @@ export const mockIssues: Issue[] = [
   {
     id: '5',
     rule_id: 'rule-R6',
-    sync_id: 'sync-1',
+    source_id: SOURCE_GOOGLE,
     target: '경쟁사 키워드',
     target_date: dateOffset(6),
     detection_key: buildDetectionKey('R6', '경쟁사 키워드', dateOffset(6)),
@@ -173,7 +149,7 @@ export const mockIssues: Issue[] = [
   {
     id: '6',
     rule_id: 'rule-R3',
-    sync_id: 'sync-1',
+    source_id: SOURCE_GOOGLE,
     target: '브랜드 검색',
     target_date: dateOffset(12),
     detection_key: buildDetectionKey('R3', '브랜드 검색', dateOffset(12)),
@@ -248,45 +224,6 @@ export function getMockSummary(days: 7 | 30) {
     },
   }
 }
-
-export interface MockNotionDatabase {
-  id: string
-  title: string
-  rowCount: number
-}
-
-/** 부모 페이지 하위 데이터베이스 (티켓 DB는 제외된 목록) */
-export const mockNotionDatabases: MockNotionDatabase[] = [
-  { id: 'a'.repeat(32), title: '구글 광고 성과 10월', rowCount: 120 },
-  { id: 'b'.repeat(32), title: '네이버 광고 성과 10월', rowCount: 90 },
-  { id: 'd'.repeat(32), title: '네이버 광고 성과 11월(샘플)', rowCount: 15 },
-]
-
-export interface MockValidationError {
-  database: string
-  row: number
-  reason: string
-}
-
-export const mockValidationErrors: MockValidationError[] = [
-  {
-    database: '네이버 광고 성과 9월',
-    row: 12,
-    reason: "'노출' 값이 숫자가 아닙니다",
-  },
-  {
-    database: '네이버 광고 성과 9월',
-    row: 27,
-    reason: "'날짜'가 YYYY-MM-DD 형식이 아닙니다",
-  },
-  {
-    database: '네이버 광고 성과 9월',
-    row: 40,
-    reason: "필수 속성 '캠페인'이 비어 있습니다",
-  },
-]
-
-export const mockDetectionSummary = { createdIssues: 3, excludedTargets: 5 }
 
 export interface MockConnectionTest {
   tokenValid: boolean

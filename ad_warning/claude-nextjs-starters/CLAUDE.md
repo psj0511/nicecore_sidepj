@@ -23,6 +23,12 @@
 - **⚡ Next.js 15.5.3 전문 가이드**: `@/docs/guides/nextjs-15.md`
 - **📝 폼 처리 완전 가이드**: `@/docs/guides/forms-react-hook-form.md`
 
+## 데이터 원칙
+
+- Notion이 **단일 저장소**다. 별도 DB(Supabase 등)를 추가하지 않는다. 규칙·이슈는 부모 페이지 하위 `[AD] 감지 규칙`·`[AD] 이슈` DB에 저장한다 (`src/lib/notion/store.ts`, `src/lib/repositories/`).
+- 성과 데이터는 **복사·동기화하지 않고** 조회 시점에 직접 읽는다 (`src/lib/notion/sources.ts`, 2분 캐시 + 수동 새로고침). 성과 DB 탐색에서 앱 데이터 DB와 티켓 DB는 제외한다.
+- Notion 토큰·부모 페이지 ID·티켓 DB ID는 환경 변수로만 받는다 (`src/lib/env.ts`). Notion 페이지 ID를 받는 액션은 `getStorePage`로 앱 DB 소속을 확인한다.
+
 ## 이상 감지 규칙
 
 - 규칙의 기준 문서는 `@/docs/detection-rules.md` 입니다. 규칙을 구현·수정할 때 반드시 먼저 읽을 것.

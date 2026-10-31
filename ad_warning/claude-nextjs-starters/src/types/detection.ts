@@ -10,7 +10,8 @@ export interface TargetSeries {
 }
 
 export interface DetectionContext {
-  syncId: string
+  /** 평가 대상이 속한 성과 Notion 데이터베이스 ID */
+  sourceId: string
   series: TargetSeries
   /** 평가 기준일(YYYY-MM-DD) */
   targetDate: string

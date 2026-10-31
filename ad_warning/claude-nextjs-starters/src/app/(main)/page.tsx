@@ -20,7 +20,7 @@ import {
   getMockDailyMetrics,
   getMockIssues,
   getMockSummary,
-  mockSyncs,
+  mockMetrics,
 } from '@/lib/mock'
 import {
   ISSUE_STATUS_LABELS,
@@ -41,17 +41,17 @@ export default async function DashboardPage({
   const days = period === '30' ? 30 : 7
 
   // TODO(Task 010): 더미 데이터를 실제 조회로 교체
-  const hasData = mockSyncs.some(s => s.status === 'success')
+  const hasData = mockMetrics.length > 0
 
   if (!hasData) {
     return (
       <PageShell title="대시보드" description="핵심 지표와 미해결 이슈">
         <EmptyState
-          title="아직 동기화된 데이터가 없습니다"
-          description="Notion 성과 데이터를 동기화하면 지표와 이슈가 표시됩니다."
+          title="아직 읽어 온 데이터가 없습니다"
+          description="Notion 성과 데이터베이스가 연결되면 지표와 이슈가 실시간으로 표시됩니다."
           action={
             <Button asChild>
-              <Link href="/sync">데이터 동기화하러 가기</Link>
+              <Link href="/sources">데이터 연결 상태 확인하기</Link>
             </Button>
           }
         />

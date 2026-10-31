@@ -5,21 +5,12 @@ import type {
   RuleCode,
   RuleStage,
   Severity,
-  SyncStatus,
 } from './enums'
-
-export interface DataSync {
-  id: string
-  notion_database_id: string
-  title: string
-  status: SyncStatus
-  row_count: number
-  synced_at: string
-}
 
 export interface AdMetric {
   id: string
-  sync_id: string
+  /** 성과 데이터가 있는 Notion 데이터베이스 ID */
+  source_id: string
   /** YYYY-MM-DD */
   date: string
   channel: Channel
@@ -53,7 +44,8 @@ export interface DetectionRule {
 export interface Issue {
   id: string
   rule_id: string
-  sync_id: string
+  /** 감지 대상이 속한 성과 Notion 데이터베이스 ID */
+  source_id: string
   /** 구글=캠페인, 네이버=광고그룹 */
   target: string
   target_date: string
@@ -67,13 +59,4 @@ export interface Issue {
   memo: string | null
   detected_at: string
   notion_url: string | null
-}
-
-export interface NotionConfig {
-  id: string
-  /** 서버 전용. 클라이언트에는 마스킹 값만 전달 */
-  token: string
-  parent_page_id: string
-  /** 이슈 티켓을 생성할 데이터베이스 */
-  database_id: string
 }

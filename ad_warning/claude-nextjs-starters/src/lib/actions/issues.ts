@@ -2,11 +2,12 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { notionPageIdSchema } from '@/lib/validations/notion-id'
 import { updateIssue } from '@/lib/repositories/issues'
 import { ISSUE_STATUSES } from '@/types'
 import type { ActionResult } from './rules'
 
-const idSchema = z.string().uuid()
+const idSchema = notionPageIdSchema
 
 export async function updateIssueStatusAction(
   id: string,

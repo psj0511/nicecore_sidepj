@@ -98,7 +98,7 @@ function RuleForm({
           {rule.rule_code} {rule.type} 설정
         </DialogTitle>
         <DialogDescription>
-          임계값을 수정하면 다음 동기화부터 적용됩니다.
+          임계값을 수정하면 다음 조회부터 바로 적용됩니다.
         </DialogDescription>
       </DialogHeader>
       <Form {...form}>
