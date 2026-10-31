@@ -182,7 +182,9 @@ Notion에 올린 광고 성과 CSV에서 이상 징후를 자동으로 찾아 �
   - 에러 로깅·모니터링 구성
   - `npm run check-all` 및 `npm run build` 최종 통과 확인
   - 진행 상황: 감지 엔진 성능 점검 완료(`engine.perf.test.ts`, 1,000캠페인×90일≈9만 행 약 1초), GitHub Actions CI 추가(`.github/workflows/ci.yml`), `check-all`·`build` 통과 확인
-  - 미완: Vercel 배포·환경 변수 구성, 에러 로깅·모니터링, 실제 Notion 기준 캐시·지연 점검
+  - 배포: Vercel 프로덕션(`nicecore-sidepj.vercel.app`) 배포 완료, Notion 환경 변수 3종 등록. Vercel이 취약 버전(CVE-2025-66478)으로 15.5.3 배포를 차단해 Next.js를 15.5.28로 업그레이드
+  - 로깅: 별도 도구 없이 Vercel 기본 런타임 로그 사용
+  - 미완: 실제 Notion 기준 캐시·지연 점검 (배포 후 실데이터로 확인 필요)
 
 ## MVP 이후 (백로그)
 
