@@ -25,19 +25,18 @@ describe('평가 단위', () => {
     ).toBe('c')
   })
 
-  it('원본 DB·채널·대상별로 시계열을 나누고 날짜순으로 정렬한다', () => {
+  it('채널·대상별로 시계열을 나누고 날짜순으로 정렬한다(원본 DB는 무시)', () => {
     const series = buildSeries([
       row('2026-11-04', { campaign: 'a' }),
       row('2026-11-03', { campaign: 'a' }),
       row('2026-11-04', { campaign: 'b' }),
       row('2026-11-04', { campaign: 'a', source_id: 'src2' }),
     ])
-    expect(series).toHaveLength(3)
-    const a = series.find(
-      s => s.sourceId === 'src1' && s.series.target === 'a'
-    )!
+    expect(series).toHaveLength(2)
+    const a = series.find(s => s.series.target === 'a')!
     expect(a.series.metrics.map(m => m.date)).toEqual([
       '2026-11-03',
+      '2026-11-04',
       '2026-11-04',
     ])
   })
@@ -145,7 +144,7 @@ describe('detect', () => {
     expect(a).toEqual(b)
   })
 
-  it('원본 DB가 다르면 시계열을 합치지 않는다', () => {
+  it('날짜별로 원본 DB가 나뉘어 있어도 이어서 비교하고 대상일 DB를 기록한다', () => {
     const run = detect(
       [
         row('2026-11-03', { spend: 200_000, source_id: 'a' }),
@@ -153,8 +152,12 @@ describe('detect', () => {
       ],
       [R1]
     )
-    // 각각 전일 데이터가 없어 평가 제외
-    expect(run).toMatchObject({ issues: [], skipped: 2 })
+    expect(run.issues).toHaveLength(1)
+    expect(run.issues[0]).toMatchObject({
+      source_id: 'b',
+      baseline_value: 200_000,
+      actual_value: 400_000,
+    })
   })
 
   it('같은 날짜의 행은 대상 단위로 합산해서 평가한다', () => {

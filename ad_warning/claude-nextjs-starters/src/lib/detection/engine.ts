@@ -9,6 +9,7 @@ export type IssueDraft = Omit<
 >
 
 export interface SourceSeries {
+  /** 가장 최근 날짜 행이 속한 원본 DB. 이슈에는 대상일 행의 DB를 기록한다 */
   sourceId: string
   series: TargetSeries
 }
@@ -26,12 +27,16 @@ export function evaluationTarget(m: AdMetric): string {
   return m.channel === 'naver' ? m.ad_group || m.campaign : m.campaign
 }
 
-/** 성과 행을 (원본 DB, 채널, 평가 대상)별 시계열로 묶는다 */
+/**
+ * 성과 행을 (채널, 평가 대상)별 시계열로 묶는다.
+ * 보고서가 날짜마다 별도 DB로 나뉘어 있어도 같은 대상의 날짜들을 이어서 비교할 수 있도록
+ * 원본 DB는 키에 넣지 않는다.
+ */
 export function buildSeries(metrics: AdMetric[]): SourceSeries[] {
   const map = new Map<string, SourceSeries>()
   for (const m of metrics) {
     const target = evaluationTarget(m)
-    const key = `${m.source_id}|${m.channel}|${target}`
+    const key = `${m.channel}|${target}`
     let entry = map.get(key)
     if (!entry) {
       entry = {
@@ -44,6 +49,7 @@ export function buildSeries(metrics: AdMetric[]): SourceSeries[] {
   }
   for (const e of map.values()) {
     e.series.metrics.sort((a, b) => a.date.localeCompare(b.date))
+    e.sourceId = e.series.metrics[e.series.metrics.length - 1]!.source_id
   }
   return [...map.values()]
 }
@@ -65,7 +71,7 @@ export function detect(
   const activeRules = rules.filter(r => r.is_active && r.stage === 1)
   const run: DetectionRun = { issues: [], evaluated: 0, skipped: 0 }
 
-  for (const { sourceId, series } of buildSeries(metrics)) {
+  for (const { series } of buildSeries(metrics)) {
     const latest = series.metrics[series.metrics.length - 1]?.date
     const dates =
       options.targetDates?.filter(d =>
@@ -73,6 +79,9 @@ export function detect(
       ) ?? (latest ? [latest] : [])
 
     for (const targetDate of dates) {
+      // 이슈는 대상일 행이 있는 DB에 연결한다
+      const sourceId = series.metrics.find(m => m.date === targetDate)!
+        .source_id
       for (const rule of activeRules) {
         const result = EVALUATORS[rule.rule_code]({
           sourceId,
