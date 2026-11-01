@@ -15,6 +15,11 @@ import { isStoreTitle } from './store'
 /** 실시간 조회 결과 캐시 시간(초). 이 시간 안의 재조회는 Notion을 다시 호출하지 않는다 */
 export const SOURCE_CACHE_SECONDS = 120
 export const SOURCE_CACHE_TAG = 'notion-sources'
+/** 지난 날짜 DB 전용 캐시. 수동 새로고침으로 비우지 않아 새로고침이 최근 DB만 다시 읽는다 */
+const ARCHIVE_CACHE_TAG = 'notion-sources-archive'
+const ARCHIVE_CACHE_SECONDS = 6 * 60 * 60
+/** 제목 끝 날짜가 오늘보다 이 일수 이상 이전이면 지난 날짜 DB로 본다 */
+const ARCHIVE_AFTER_DAYS = 2
 /** 대시보드·감지가 읽는 범위: 데이터의 최신 날짜 기준 최근 N일 (비교 기간 포함 여유분) */
 export const METRIC_WINDOW_DAYS = 90
 
@@ -88,7 +93,7 @@ export const listSourceDatabases = unstable_cache(
 )
 
 /** Notion 한도(초당 ~3건) 초과를 피하기 위한 동시 조회 DB 수 */
-const SOURCE_CONCURRENCY = 2
+const SOURCE_CONCURRENCY = 3
 
 type RawProp = Record<string, unknown> & { type: string }
 
@@ -310,11 +315,35 @@ async function loadSource(
   return { database, rowCount: pages.length, metrics, errors, fetchedAt }
 }
 
-/** 성과 DB 한 개를 실시간(짧은 캐시)으로 읽는다. 검증 오류 행은 제외하고 오류로 보고한다 */
-export const readSource = unstable_cache(loadSource, ['notion-source'], {
+const readRecentSource = unstable_cache(loadSource, ['notion-source'], {
   revalidate: SOURCE_CACHE_SECONDS,
   tags: [SOURCE_CACHE_TAG],
 })
+
+const readArchivedSource = unstable_cache(
+  loadSource,
+  ['notion-source-archive'],
+  {
+    revalidate: ARCHIVE_CACHE_SECONDS,
+    tags: [ARCHIVE_CACHE_TAG],
+  }
+)
+
+/** 제목 끝에 붙은 보고 날짜(YYYY-MM-DD)가 충분히 지난 DB인지 */
+function isArchived(title: string): boolean {
+  const m = /(\d{4}-\d{2}-\d{2})\s*$/.exec(title)
+  return !!m && m[1]! < daysBefore(new Date().toISOString(), ARCHIVE_AFTER_DAYS)
+}
+
+/** 성과 DB 한 개를 읽는다. 최근 DB는 짧은 캐시, 지난 날짜 DB는 긴 캐시. 검증 오류 행은 제외하고 오류로 보고한다 */
+export function readSource(
+  database: SourceDatabase,
+  windowDays?: number
+): Promise<SourceSnapshot> {
+  return isArchived(database.title)
+    ? readArchivedSource(database, windowDays)
+    : readRecentSource(database, windowDays)
+}
 
 /** 모든 성과 DB를 읽는다. DB 하나가 실패해도 나머지는 계속 읽는다 */
 export async function readAllSources(
